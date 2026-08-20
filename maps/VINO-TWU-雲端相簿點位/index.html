@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VINO TWU開發工具｜現勘照片點位小工具</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --deep:#203940; --green:#667D78; --soft:#F3F2ED; --card:#FFFFFF; --line:#D4D8D5;
+  --text:#29383C; --muted:#758086; --blue:#5E7F7C; --warn:#8B6F47;
+}
+* { box-sizing:border-box; }
+html, body { width:100%; height:100%; }
+body { margin:0; font-family:"Microsoft JhengHei","Noto Sans TC",Arial,sans-serif; background:#ECEFEB; color:var(--text); }
+.app { display:grid; grid-template-columns:360px 1fr; height:100vh; gap:0; }
+.sidebar { padding:22px; background:rgba(255,255,255,.94); border-right:1px solid var(--line); overflow:auto; z-index:10; }
+.brand { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.logo { width:48px; height:48px; border-radius:12px; background:#E5E9E5; display:grid; place-items:center; font-size:26px; }
+h1 { margin:0; color:var(--deep); font-size:24px; line-height:1.2; }
+.tool-name { color:var(--green); font-size:15px; font-weight:800; margin-top:4px; }
+.subtitle { color:var(--muted); font-size:12px; margin-top:5px; line-height:1.5; }
+.project-badge { margin:10px 0 2px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; background:var(--soft); font-size:12px; color:var(--text); word-break:break-all; }
+.stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+.stat { background:var(--soft); border:1px solid var(--line); border-radius:18px; padding:12px; }
+.stat b { font-size:22px; color:var(--deep); }
+.stat small { display:block; color:var(--muted); margin-top:2px; }
+.map-summary { margin:10px 0 12px; padding:9px 10px; border:1px solid var(--line); border-radius:12px; background:#FAFAF7; font-size:11px; color:var(--muted); line-height:1.55; }
+.map-summary b { color:var(--deep); }
+.photo-row { width:100%; display:flex; gap:10px; align-items:flex-start; text-align:left; padding:11px 10px; margin:8px 0; border:1px solid var(--line); border-radius:16px; background:#fff; cursor:pointer; transition:.15s; color:var(--text); }
+.photo-row:hover { transform:translateY(-1px); box-shadow:0 8px 20px rgba(11,31,51,.12); border-color:#AAB8B3; }
+.row-index { flex:0 0 28px; height:28px; border-radius:50%; background:var(--green); color:#fff; display:grid; place-items:center; font-weight:700; }
+.row-main b { display:block; font-size:13px; word-break:break-all; }
+.row-main small { display:block; color:var(--muted); margin-top:4px; font-size:11px; line-height:1.35; }
+.map-stage { position:relative; min-width:0; height:100vh; background:#D8D9D5; overflow:hidden; }
+.map-engine { position:absolute; inset:0; width:100%; height:100%; }
+#google-map { display:none; }
+.map-switcher { position:absolute; z-index:1000; top:14px; right:14px; width:min(310px, calc(100% - 28px)); background:rgba(255,255,255,.96); border:1px solid #BFC7C3; border-radius:12px; padding:10px; box-shadow:0 4px 18px rgba(25,45,49,.14); }
+.map-switcher label { display:block; font-size:12px; font-weight:800; color:var(--deep); margin-bottom:5px; }
+.map-switcher select { width:100%; border:1px solid #C8D0CC; border-radius:8px; background:#fff; color:var(--text); padding:7px 8px; font-family:inherit; font-size:12px; }
+.switch-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:7px; }
+.switch-row label { margin:0; font-weight:500; color:var(--muted); }
+#active-map-name { font-size:11px; color:var(--green); font-weight:800; }
+#map-message { display:none; position:absolute; z-index:1100; top:116px; right:14px; max-width:360px; background:rgba(255,252,243,.97); color:#6E5737; border:1px solid #D8C8AA; border-radius:10px; padding:9px 11px; font-size:12px; box-shadow:0 3px 12px rgba(0,0,0,.1); }
+.popup-card { width:310px; }
+.popup-title { font-weight:800; color:var(--deep); font-size:15px; margin-bottom:6px; word-break:break-all; }
+.popup-meta { font-size:12px; color:var(--text); margin:3px 0; }
+.popup-photo { width:100%; max-height:360px; object-fit:contain; border-radius:12px; margin:8px 0; background:#F4F2ED; }
+.popup-coord { font-size:11px; color:var(--muted); margin:5px 0; }
+.map-link { display:inline-block; margin-top:6px; color:#fff !important; background:var(--blue); text-decoration:none; padding:7px 10px; border-radius:10px; font-weight:700; }
+.target-ipad .photo-row, .target-android .photo-row { min-height:54px; }
+.target-ipad .map-switcher select, .target-android .map-switcher select { min-height:38px; }
+.target-ipad .map-link, .target-android .map-link { display:inline-block; padding:9px 12px; }
+@media (max-width:900px) {
+  .app { grid-template-columns:1fr; grid-template-rows:300px 1fr; }
+  .sidebar { height:300px; }
+  .map-stage { height:calc(100vh - 300px); }
+}
+</style>
+</head>
+<body class="target-cloud">
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">📷</div>
+      <div>
+        <h1>VINO TWU開發工具</h1>
+        <div class="tool-name">現勘照片點位小工具</div>
+      </div>
+    </div>
+    <div class="project-badge">VINO TWU 雲端相簿點位</div>
+    <div class="stats">
+      <div class="stat"><b>115</b><small>含 GPS 照片</small></div>
+      <div class="stat"><b>cloud</b><small>資料來源模式</small></div>
+    </div>
+    <div class="subtitle">點選清單可定位到點位；右上角可直接切換所有底圖，不必再開不同 HTML。</div>
+    <div class="map-summary"><b>5 種底圖：</b><br>OpenStreetMap 街道圖、Google 街道圖、Esri World Imagery、Google 衛星圖、NLSC 正射影像。<br><b>預設：</b>Google 衛星圖<br><b>HTML 模式：</b>區網／戶外共用版（照片分離）<br><b>照片：</b>電腦路徑／Drive 線上縮圖<br>Google 底圖已啟用</div>
+    <div class="photo-list">
+            <button class="photo-row" data-lat="24.01931597222222" data-lng="120.67961972222223" data-index="1">
+              <span class="row-index">1</span>
+              <span class="row-main">
+                <b>20260818_pt100_20260818163433.jpg</b>
+                <small>2026-08-18 16:34:33｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019307388888887" data-lng="120.67959433333334" data-index="2">
+              <span class="row-index">2</span>
+              <span class="row-main">
+                <b>20260818_pt101_20260818163454.jpg</b>
+                <small>2026-08-18 16:34:54｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019351527777776" data-lng="120.67954475" data-index="3">
+              <span class="row-index">3</span>
+              <span class="row-main">
+                <b>20260818_pt102_20260818163549.jpg</b>
+                <small>2026-08-18 16:35:49｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018818333333332" data-lng="120.67980205555556" data-index="4">
+              <span class="row-index">4</span>
+              <span class="row-main">
+                <b>20260818_pt103_20260818163732.jpg</b>
+                <small>2026-08-18 16:37:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018850444444443" data-lng="120.67982111111111" data-index="5">
+              <span class="row-index">5</span>
+              <span class="row-main">
+                <b>20260818_pt104_20260818163755.jpg</b>
+                <small>2026-08-18 16:37:55｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01886372222222" data-lng="120.67984255555557" data-index="6">
+              <span class="row-index">6</span>
+              <span class="row-main">
+                <b>20260818_pt105_20260818163843.jpg</b>
+                <small>2026-08-18 16:38:43｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018845" data-lng="120.67987933333333" data-index="7">
+              <span class="row-index">7</span>
+              <span class="row-main">
+                <b>20260818_pt106_20260818163905.jpg</b>
+                <small>2026-08-18 16:39:05｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01882922222222" data-lng="120.67988375" data-index="8">
+              <span class="row-index">8</span>
+              <span class="row-main">
+                <b>20260818_pt107_20260818163940.jpg</b>
+                <small>2026-08-18 16:39:40｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01879038888889" data-lng="120.67985955555557" data-index="9">
+              <span class="row-index">9</span>
+              <span class="row-main">
+                <b>20260818_pt108_20260818164004.jpg</b>
+                <small>2026-08-18 16:40:04｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018777305555556" data-lng="120.67986252777779" data-index="10">
+              <span class="row-index">10</span>
+              <span class="row-main">
+                <b>20260818_pt109_20260818164029.jpg</b>
+                <small>2026-08-18 16:40:29｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018724194444445" data-lng="120.68203022222222" data-index="11">
+              <span class="row-index">11</span>
+              <span class="row-main">
+                <b>20260818_pt10_20260818154303.jpg</b>
+                <small>2026-08-18 15:43:03｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018767916666665" data-lng="120.67990286111112" data-index="12">
+              <span class="row-index">12</span>
+              <span class="row-main">
+                <b>20260818_pt110_20260818164055.jpg</b>
+                <small>2026-08-18 16:40:55｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018720944444443" data-lng="120.67987758333334" data-index="13">
+              <span class="row-index">13</span>
+              <span class="row-main">
+                <b>20260818_pt111_20260818164121.jpg</b>
+                <small>2026-08-18 16:41:21｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01870877777778" data-lng="120.67990533333334" data-index="14">
+              <span class="row-index">14</span>
+              <span class="row-main">
+                <b>20260818_pt112_20260818164145.jpg</b>
+                <small>2026-08-18 16:41:45｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018803666666667" data-lng="120.67992269444444" data-index="15">
+              <span class="row-index">15</span>
+              <span class="row-main">
+                <b>20260818_pt113_20260818164211.jpg</b>
+                <small>2026-08-18 16:42:11｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01887486111111" data-lng="120.67996294444445" data-index="16">
+              <span class="row-index">16</span>
+              <span class="row-main">
+                <b>20260818_pt114_20260818164239.jpg</b>
+                <small>2026-08-18 16:42:39｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018770583333332" data-lng="120.68019075000001" data-index="17">
+              <span class="row-index">17</span>
+              <span class="row-main">
+                <b>20260818_pt115_20260818164329.jpg</b>
+                <small>2026-08-18 16:43:29｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018673305555556" data-lng="120.680138" data-index="18">
+              <span class="row-index">18</span>
+              <span class="row-main">
+                <b>20260818_pt116_20260818164405.jpg</b>
+                <small>2026-08-18 16:44:05｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018616777777776" data-lng="120.68010780555556" data-index="19">
+              <span class="row-index">19</span>
+              <span class="row-main">
+                <b>20260818_pt117_20260818164434.jpg</b>
+                <small>2026-08-18 16:44:34｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018531888888887" data-lng="120.68030202777778" data-index="20">
+              <span class="row-index">20</span>
+              <span class="row-main">
+                <b>20260818_pt118_20260818164510.jpg</b>
+                <small>2026-08-18 16:45:10｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01847686111111" data-lng="120.68040375000001" data-index="21">
+              <span class="row-index">21</span>
+              <span class="row-main">
+                <b>20260818_pt119_20260818164548.jpg</b>
+                <small>2026-08-18 16:45:48｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018698861111112" data-lng="120.68201913888889" data-index="22">
+              <span class="row-index">22</span>
+              <span class="row-main">
+                <b>20260818_pt11_20260818154327.jpg</b>
+                <small>2026-08-18 15:43:27｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018563027777777" data-lng="120.68045791666667" data-index="23">
+              <span class="row-index">23</span>
+              <span class="row-main">
+                <b>20260818_pt120_20260818164615.jpg</b>
+                <small>2026-08-18 16:46:15｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018589166666665" data-lng="120.68040686111111" data-index="24">
+              <span class="row-index">24</span>
+              <span class="row-main">
+                <b>20260818_pt121_20260818164639.jpg</b>
+                <small>2026-08-18 16:46:39｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01866136111111" data-lng="120.68044561111111" data-index="25">
+              <span class="row-index">25</span>
+              <span class="row-main">
+                <b>20260818_pt122_20260818164712.jpg</b>
+                <small>2026-08-18 16:47:12｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018876083333332" data-lng="120.68056244444445" data-index="26">
+              <span class="row-index">26</span>
+              <span class="row-main">
+                <b>20260818_pt123_20260818164839.jpg</b>
+                <small>2026-08-18 16:48:39｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018900583333334" data-lng="120.6805088888889" data-index="27">
+              <span class="row-index">27</span>
+              <span class="row-main">
+                <b>20260818_pt124_20260818164904.jpg</b>
+                <small>2026-08-18 16:49:04｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01890061111111" data-lng="120.680509" data-index="28">
+              <span class="row-index">28</span>
+              <span class="row-main">
+                <b>20260818_pt125_20260818164932.jpg</b>
+                <small>2026-08-18 16:49:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018875638888886" data-lng="120.68056247222222" data-index="29">
+              <span class="row-index">29</span>
+              <span class="row-main">
+                <b>20260818_pt126_20260818165002.jpg</b>
+                <small>2026-08-18 16:50:02｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01877463888889" data-lng="120.68050744444444" data-index="30">
+              <span class="row-index">30</span>
+              <span class="row-main">
+                <b>20260818_pt127_20260818165032.jpg</b>
+                <small>2026-08-18 16:50:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018793805555553" data-lng="120.68046613888889" data-index="31">
+              <span class="row-index">31</span>
+              <span class="row-main">
+                <b>20260818_pt128_20260818165054.jpg</b>
+                <small>2026-08-18 16:50:54｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018762166666665" data-lng="120.68043902777778" data-index="32">
+              <span class="row-index">32</span>
+              <span class="row-main">
+                <b>20260818_pt129_20260818165121.jpg</b>
+                <small>2026-08-18 16:51:21｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018758277777778" data-lng="120.68183786111112" data-index="33">
+              <span class="row-index">33</span>
+              <span class="row-main">
+                <b>20260818_pt12_20260818154414.jpg</b>
+                <small>2026-08-18 15:44:14｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018805083333334" data-lng="120.68172927777778" data-index="34">
+              <span class="row-index">34</span>
+              <span class="row-main">
+                <b>20260818_pt13_20260818154451.jpg</b>
+                <small>2026-08-18 15:44:51｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018796055555555" data-lng="120.6817241388889" data-index="35">
+              <span class="row-index">35</span>
+              <span class="row-main">
+                <b>20260818_pt14_20260818154514.jpg</b>
+                <small>2026-08-18 15:45:14｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018804055555556" data-lng="120.68169941666667" data-index="36">
+              <span class="row-index">36</span>
+              <span class="row-main">
+                <b>20260818_pt15_20260818154548.jpg</b>
+                <small>2026-08-18 15:45:48｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01881361111111" data-lng="120.68170322222223" data-index="37">
+              <span class="row-index">37</span>
+              <span class="row-main">
+                <b>20260818_pt16_20260818154614.jpg</b>
+                <small>2026-08-18 15:46:14｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018859666666664" data-lng="120.68167588888889" data-index="38">
+              <span class="row-index">38</span>
+              <span class="row-main">
+                <b>20260818_pt17_20260818154640.jpg</b>
+                <small>2026-08-18 15:46:40｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018912583333332" data-lng="120.68151266666668" data-index="39">
+              <span class="row-index">39</span>
+              <span class="row-main">
+                <b>20260818_pt19_20260818154747.jpg</b>
+                <small>2026-08-18 15:47:47｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018816916666665" data-lng="120.68146961111111" data-index="40">
+              <span class="row-index">40</span>
+              <span class="row-main">
+                <b>20260818_pt20_20260818154820.jpg</b>
+                <small>2026-08-18 15:48:20｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01881536111111" data-lng="120.68147322222222" data-index="41">
+              <span class="row-index">41</span>
+              <span class="row-main">
+                <b>20260818_pt21_20260818154840.jpg</b>
+                <small>2026-08-18 15:48:40｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018708944444445" data-lng="120.68141544444445" data-index="42">
+              <span class="row-index">42</span>
+              <span class="row-main">
+                <b>20260818_pt22_20260818154913.jpg</b>
+                <small>2026-08-18 15:49:13｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018708944444445" data-lng="120.68141355555557" data-index="43">
+              <span class="row-index">43</span>
+              <span class="row-main">
+                <b>20260818_pt23_20260818154935.jpg</b>
+                <small>2026-08-18 15:49:35｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01868311111111" data-lng="120.68139641666667" data-index="44">
+              <span class="row-index">44</span>
+              <span class="row-main">
+                <b>20260818_pt24_20260818154957.jpg</b>
+                <small>2026-08-18 15:49:57｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018663277777776" data-lng="120.68138419444445" data-index="45">
+              <span class="row-index">45</span>
+              <span class="row-main">
+                <b>20260818_pt25_20260818155027.jpg</b>
+                <small>2026-08-18 15:50:27｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018636277777777" data-lng="120.68135375" data-index="46">
+              <span class="row-index">46</span>
+              <span class="row-main">
+                <b>20260818_pt26_20260818155052.jpg</b>
+                <small>2026-08-18 15:50:52｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018623333333334" data-lng="120.68131911111112" data-index="47">
+              <span class="row-index">47</span>
+              <span class="row-main">
+                <b>20260818_pt27_20260818155115.jpg</b>
+                <small>2026-08-18 15:51:15｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018607194444442" data-lng="120.68130519444445" data-index="48">
+              <span class="row-index">48</span>
+              <span class="row-main">
+                <b>20260818_pt28_20260818155141.jpg</b>
+                <small>2026-08-18 15:51:41｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018598277777777" data-lng="120.68132908333334" data-index="49">
+              <span class="row-index">49</span>
+              <span class="row-main">
+                <b>20260818_pt29_20260818155207.jpg</b>
+                <small>2026-08-18 15:52:07｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018586694444444" data-lng="120.68134908333334" data-index="50">
+              <span class="row-index">50</span>
+              <span class="row-main">
+                <b>20260818_pt2_20260818153438.jpg</b>
+                <small>2026-08-18 15:34:38｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01853936111111" data-lng="120.68127394444446" data-index="51">
+              <span class="row-index">51</span>
+              <span class="row-main">
+                <b>20260818_pt31_20260818155359.jpg</b>
+                <small>2026-08-18 15:53:59｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018519638888886" data-lng="120.68126286111112" data-index="52">
+              <span class="row-index">52</span>
+              <span class="row-main">
+                <b>20260818_pt32_20260818155423.jpg</b>
+                <small>2026-08-18 15:54:23｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018505305555554" data-lng="120.68125752777779" data-index="53">
+              <span class="row-index">53</span>
+              <span class="row-main">
+                <b>20260818_pt33_20260818155503.jpg</b>
+                <small>2026-08-18 15:55:03｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018500638888888" data-lng="120.68126072222223" data-index="54">
+              <span class="row-index">54</span>
+              <span class="row-main">
+                <b>20260818_pt34_20260818155525.jpg</b>
+                <small>2026-08-18 15:55:25｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018340666666667" data-lng="120.681189" data-index="55">
+              <span class="row-index">55</span>
+              <span class="row-main">
+                <b>20260818_pt35_20260818155608.jpg</b>
+                <small>2026-08-18 15:56:08｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018309194444445" data-lng="120.68117827777779" data-index="56">
+              <span class="row-index">56</span>
+              <span class="row-main">
+                <b>20260818_pt36_20260818155631.jpg</b>
+                <small>2026-08-18 15:56:31｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018271055555555" data-lng="120.68118144444445" data-index="57">
+              <span class="row-index">57</span>
+              <span class="row-main">
+                <b>20260818_pt37_20260818155655.jpg</b>
+                <small>2026-08-18 15:56:55｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018214666666665" data-lng="120.6812691388889" data-index="58">
+              <span class="row-index">58</span>
+              <span class="row-main">
+                <b>20260818_pt38_20260818155726.jpg</b>
+                <small>2026-08-18 15:57:26｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018174777777777" data-lng="120.68135463888889" data-index="59">
+              <span class="row-index">59</span>
+              <span class="row-main">
+                <b>20260818_pt39_20260818155806.jpg</b>
+                <small>2026-08-18 15:58:06｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018618194444443" data-lng="120.68137319444445" data-index="60">
+              <span class="row-index">60</span>
+              <span class="row-main">
+                <b>20260818_pt3_20260818153502.jpg</b>
+                <small>2026-08-18 15:35:02｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018093277777776" data-lng="120.68136891666667" data-index="61">
+              <span class="row-index">61</span>
+              <span class="row-main">
+                <b>20260818_pt40_20260818155842.jpg</b>
+                <small>2026-08-18 15:58:42｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01806075" data-lng="120.68137122222223" data-index="62">
+              <span class="row-index">62</span>
+              <span class="row-main">
+                <b>20260818_pt41_20260818155911.jpg</b>
+                <small>2026-08-18 15:59:11｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01801997222222" data-lng="120.68146361111111" data-index="63">
+              <span class="row-index">63</span>
+              <span class="row-main">
+                <b>20260818_pt42_20260818155953.jpg</b>
+                <small>2026-08-18 15:59:53｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018041083333333" data-lng="120.68147747222223" data-index="64">
+              <span class="row-index">64</span>
+              <span class="row-main">
+                <b>20260818_pt43_20260818160033.jpg</b>
+                <small>2026-08-18 16:00:33｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018071416666665" data-lng="120.68150075" data-index="65">
+              <span class="row-index">65</span>
+              <span class="row-main">
+                <b>20260818_pt44_20260818160101.jpg</b>
+                <small>2026-08-18 16:01:01｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017956249999997" data-lng="120.68176058333334" data-index="66">
+              <span class="row-index">66</span>
+              <span class="row-main">
+                <b>20260818_pt45_20260818160201.jpg</b>
+                <small>2026-08-18 16:02:01｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017929833333334" data-lng="120.68174677777779" data-index="67">
+              <span class="row-index">67</span>
+              <span class="row-main">
+                <b>20260818_pt46_20260818160227.jpg</b>
+                <small>2026-08-18 16:02:27｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017892694444445" data-lng="120.68182697222223" data-index="68">
+              <span class="row-index">68</span>
+              <span class="row-main">
+                <b>20260818_pt47_20260818160301.jpg</b>
+                <small>2026-08-18 16:03:01｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017843416666665" data-lng="120.68180205555556" data-index="69">
+              <span class="row-index">69</span>
+              <span class="row-main">
+                <b>20260818_pt49_20260818160409.jpg</b>
+                <small>2026-08-18 16:04:09｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018618916666664" data-lng="120.68139636111111" data-index="70">
+              <span class="row-index">70</span>
+              <span class="row-main">
+                <b>20260818_pt4_20260818153524.jpg</b>
+                <small>2026-08-18 15:35:24｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01793161111111" data-lng="120.68188086111111" data-index="71">
+              <span class="row-index">71</span>
+              <span class="row-main">
+                <b>20260818_pt54_20260818160603.jpg</b>
+                <small>2026-08-18 16:06:03｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01793311111111" data-lng="120.6818823888889" data-index="72">
+              <span class="row-index">72</span>
+              <span class="row-main">
+                <b>20260818_pt55_20260818160642.jpg</b>
+                <small>2026-08-18 16:06:42｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018028388888887" data-lng="120.68193394444445" data-index="73">
+              <span class="row-index">73</span>
+              <span class="row-main">
+                <b>20260818_pt56_20260818160713.jpg</b>
+                <small>2026-08-18 16:07:13｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018067833333333" data-lng="120.68194341666667" data-index="74">
+              <span class="row-index">74</span>
+              <span class="row-main">
+                <b>20260818_pt57_20260818160735.jpg</b>
+                <small>2026-08-18 16:07:35｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01806811111111" data-lng="120.68188030555557" data-index="75">
+              <span class="row-index">75</span>
+              <span class="row-main">
+                <b>20260818_pt58_20260818160806.jpg</b>
+                <small>2026-08-18 16:08:06｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018062666666665" data-lng="120.68186922222223" data-index="76">
+              <span class="row-index">76</span>
+              <span class="row-main">
+                <b>20260818_pt59_20260818160834.jpg</b>
+                <small>2026-08-18 16:08:34｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01865422222222" data-lng="120.68143016666667" data-index="77">
+              <span class="row-index">77</span>
+              <span class="row-main">
+                <b>20260818_pt5_20260818153553.jpg</b>
+                <small>2026-08-18 15:35:53｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01807008333333" data-lng="120.68182591666667" data-index="78">
+              <span class="row-index">78</span>
+              <span class="row-main">
+                <b>20260818_pt60_20260818160857.jpg</b>
+                <small>2026-08-18 16:08:57｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018064555555554" data-lng="120.68182033333333" data-index="79">
+              <span class="row-index">79</span>
+              <span class="row-main">
+                <b>20260818_pt61_20260818160917.jpg</b>
+                <small>2026-08-18 16:09:17｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01811508333333" data-lng="120.68170438888889" data-index="80">
+              <span class="row-index">80</span>
+              <span class="row-main">
+                <b>20260818_pt62_20260818160951.jpg</b>
+                <small>2026-08-18 16:09:51｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018163694444443" data-lng="120.6815933888889" data-index="81">
+              <span class="row-index">81</span>
+              <span class="row-main">
+                <b>20260818_pt63_20260818161032.jpg</b>
+                <small>2026-08-18 16:10:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018197583333333" data-lng="120.68154605555556" data-index="82">
+              <span class="row-index">82</span>
+              <span class="row-main">
+                <b>20260818_pt64_20260818161132.jpg</b>
+                <small>2026-08-18 16:11:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018230527777778" data-lng="120.68149841666667" data-index="83">
+              <span class="row-index">83</span>
+              <span class="row-main">
+                <b>20260818_pt65_20260818161156.jpg</b>
+                <small>2026-08-18 16:11:56｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018161638888888" data-lng="120.681593" data-index="84">
+              <span class="row-index">84</span>
+              <span class="row-main">
+                <b>20260818_pt66_20260818161241.jpg</b>
+                <small>2026-08-18 16:12:41｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018145666666666" data-lng="120.68158355555556" data-index="85">
+              <span class="row-index">85</span>
+              <span class="row-main">
+                <b>20260818_pt67_20260818161309.jpg</b>
+                <small>2026-08-18 16:13:09｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01805013888889" data-lng="120.68179630555557" data-index="86">
+              <span class="row-index">86</span>
+              <span class="row-main">
+                <b>20260818_pt68_20260818161354.jpg</b>
+                <small>2026-08-18 16:13:54｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018070944444442" data-lng="120.68180655555555" data-index="87">
+              <span class="row-index">87</span>
+              <span class="row-main">
+                <b>20260818_pt69_20260818161421.jpg</b>
+                <small>2026-08-18 16:14:21｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018700027777776" data-lng="120.681455" data-index="88">
+              <span class="row-index">88</span>
+              <span class="row-main">
+                <b>20260818_pt6_20260818153650.jpg</b>
+                <small>2026-08-18 15:36:50｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01792972222222" data-lng="120.68188402777778" data-index="89">
+              <span class="row-index">89</span>
+              <span class="row-main">
+                <b>20260818_pt70_20260818161505.jpg</b>
+                <small>2026-08-18 16:15:05｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017901277777778" data-lng="120.68186902777778" data-index="90">
+              <span class="row-index">90</span>
+              <span class="row-main">
+                <b>20260818_pt71_20260818161531.jpg</b>
+                <small>2026-08-18 16:15:31｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017923333333332" data-lng="120.68181425" data-index="91">
+              <span class="row-index">91</span>
+              <span class="row-main">
+                <b>20260818_pt72_20260818161558.jpg</b>
+                <small>2026-08-18 16:15:58｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01795236111111" data-lng="120.68182986111111" data-index="92">
+              <span class="row-index">92</span>
+              <span class="row-main">
+                <b>20260818_pt73_20260818161624.jpg</b>
+                <small>2026-08-18 16:16:24｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.017961555555555" data-lng="120.68174730555556" data-index="93">
+              <span class="row-index">93</span>
+              <span class="row-main">
+                <b>20260818_pt74_20260818161700.jpg</b>
+                <small>2026-08-18 16:17:00｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01798225" data-lng="120.68175855555556" data-index="94">
+              <span class="row-index">94</span>
+              <span class="row-main">
+                <b>20260818_pt75_20260818161722.jpg</b>
+                <small>2026-08-18 16:17:22｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01807722222222" data-lng="120.68154552777779" data-index="95">
+              <span class="row-index">95</span>
+              <span class="row-main">
+                <b>20260818_pt76_20260818161812.jpg</b>
+                <small>2026-08-18 16:18:12｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018056972222222" data-lng="120.68153505555556" data-index="96">
+              <span class="row-index">96</span>
+              <span class="row-main">
+                <b>20260818_pt77_20260818161836.jpg</b>
+                <small>2026-08-18 16:18:36｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018150444444444" data-lng="120.68149341666667" data-index="97">
+              <span class="row-index">97</span>
+              <span class="row-main">
+                <b>20260818_pt79_20260818161947.jpg</b>
+                <small>2026-08-18 16:19:47｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018739333333333" data-lng="120.68147519444445" data-index="98">
+              <span class="row-index">98</span>
+              <span class="row-main">
+                <b>20260818_pt7_20260818153718.jpg</b>
+                <small>2026-08-18 15:37:18｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01817938888889" data-lng="120.68148344444445" data-index="99">
+              <span class="row-index">99</span>
+              <span class="row-main">
+                <b>20260818_pt80_20260818162015.jpg</b>
+                <small>2026-08-18 16:20:15｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018612722222223" data-lng="120.68119675" data-index="100">
+              <span class="row-index">100</span>
+              <span class="row-main">
+                <b>20260818_pt81_20260818162255.jpg</b>
+                <small>2026-08-18 16:22:55｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01865122222222" data-lng="120.68120408333334" data-index="101">
+              <span class="row-index">101</span>
+              <span class="row-main">
+                <b>20260818_pt82_20260818162318.jpg</b>
+                <small>2026-08-18 16:23:18｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01890411111111" data-lng="120.68064427777779" data-index="102">
+              <span class="row-index">102</span>
+              <span class="row-main">
+                <b>20260818_pt83_20260818162456.jpg</b>
+                <small>2026-08-18 16:24:56｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018871666666666" data-lng="120.68062569444444" data-index="103">
+              <span class="row-index">103</span>
+              <span class="row-main">
+                <b>20260818_pt84_20260818162526.jpg</b>
+                <small>2026-08-18 16:25:26｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01879863888889" data-lng="120.68058702777778" data-index="104">
+              <span class="row-index">104</span>
+              <span class="row-main">
+                <b>20260818_pt85_20260818162555.jpg</b>
+                <small>2026-08-18 16:25:55｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018763916666664" data-lng="120.68047433333334" data-index="105">
+              <span class="row-index">105</span>
+              <span class="row-main">
+                <b>20260818_pt86_20260818162632.jpg</b>
+                <small>2026-08-18 16:26:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01877875" data-lng="120.68048225000001" data-index="106">
+              <span class="row-index">106</span>
+              <span class="row-main">
+                <b>20260818_pt87_20260818162652.jpg</b>
+                <small>2026-08-18 16:26:52｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018785194444444" data-lng="120.68046927777779" data-index="107">
+              <span class="row-index">107</span>
+              <span class="row-main">
+                <b>20260818_pt88_20260818162712.jpg</b>
+                <small>2026-08-18 16:27:12｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018786944444443" data-lng="120.68047005555556" data-index="108">
+              <span class="row-index">108</span>
+              <span class="row-main">
+                <b>20260818_pt89_20260818162732.jpg</b>
+                <small>2026-08-18 16:27:32｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018736333333333" data-lng="120.68148516666668" data-index="109">
+              <span class="row-index">109</span>
+              <span class="row-main">
+                <b>20260818_pt8_20260818153744.jpg</b>
+                <small>2026-08-18 15:37:44｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.018795472222223" data-lng="120.68045541666667" data-index="110">
+              <span class="row-index">110</span>
+              <span class="row-main">
+                <b>20260818_pt91_20260818162808.jpg</b>
+                <small>2026-08-18 16:28:08｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019049499999998" data-lng="120.68005847222223" data-index="111">
+              <span class="row-index">111</span>
+              <span class="row-main">
+                <b>20260818_pt96_20260818163142.jpg</b>
+                <small>2026-08-18 16:31:42｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019410777777775" data-lng="120.67958211111112" data-index="112">
+              <span class="row-index">112</span>
+              <span class="row-main">
+                <b>20260818_pt97_20260818163314.jpg</b>
+                <small>2026-08-18 16:33:14｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019402333333332" data-lng="120.67959933333334" data-index="113">
+              <span class="row-index">113</span>
+              <span class="row-main">
+                <b>20260818_pt98_20260818163335.jpg</b>
+                <small>2026-08-18 16:33:35｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.019359388888887" data-lng="120.67965047222222" data-index="114">
+              <span class="row-index">114</span>
+              <span class="row-main">
+                <b>20260818_pt99_20260818163400.jpg</b>
+                <small>2026-08-18 16:34:00｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            
+            <button class="photo-row" data-lat="24.01876227777778" data-lng="120.68149736111111" data-index="115">
+              <span class="row-index">115</span>
+              <span class="row-main">
+                <b>20260818_pt9_20260818153808.jpg</b>
+                <small>2026-08-18 15:38:08｜未辨識型號（已略過其餘照片）</small>
+              </span>
+            </button>
+            </div>
+  </aside>
+  <main class="map-stage">
+    <div id="leaflet-map" class="map-engine"></div>
+    <div id="google-map" class="map-engine"></div>
+    <div class="map-switcher">
+      <label for="basemap-select">底圖切換</label>
+      <select id="basemap-select">
+        <option value="osm">OpenStreetMap 街道圖</option>
+        <option value="google_road">Google 街道圖</option>
+        <option value="esri">Esri World Imagery 衛星圖</option>
+        <option value="google_satellite">Google 衛星圖</option>
+        <option value="nlsc">NLSC 正射影像</option>
+      </select>
+      <div class="switch-row">
+        <label><input type="checkbox" id="labels-toggle" checked> Esri 地名標註</label>
+        <span id="active-map-name"></span>
+      </div>
+    </div>
+    <div id="map-message"></div>
+  </main>
+</div>
+<script>
+const POINTS = [{"index": 1, "lat": 24.01931597222222, "lng": 120.67961972222223, "title": "20260818_pt100_20260818163433.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt100_20260818163433.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:34:33<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0001.jpg\" alt=\"20260818_pt100_20260818163433.jpg\" />\n              <div class='popup-coord'>座標：24.01931597, 120.67961972<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01931597222222,120.67961972222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 2, "lat": 24.019307388888887, "lng": 120.67959433333334, "title": "20260818_pt101_20260818163454.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt101_20260818163454.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:34:54<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0002.jpg\" alt=\"20260818_pt101_20260818163454.jpg\" />\n              <div class='popup-coord'>座標：24.01930739, 120.67959433<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019307388888887,120.67959433333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 3, "lat": 24.019351527777776, "lng": 120.67954475, "title": "20260818_pt102_20260818163549.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt102_20260818163549.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:35:49<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0003.jpg\" alt=\"20260818_pt102_20260818163549.jpg\" />\n              <div class='popup-coord'>座標：24.01935153, 120.67954475<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019351527777776,120.67954475'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 4, "lat": 24.018818333333332, "lng": 120.67980205555556, "title": "20260818_pt103_20260818163732.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt103_20260818163732.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:37:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0004.jpg\" alt=\"20260818_pt103_20260818163732.jpg\" />\n              <div class='popup-coord'>座標：24.01881833, 120.67980206<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018818333333332,120.67980205555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 5, "lat": 24.018850444444443, "lng": 120.67982111111111, "title": "20260818_pt104_20260818163755.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt104_20260818163755.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:37:55<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0005.jpg\" alt=\"20260818_pt104_20260818163755.jpg\" />\n              <div class='popup-coord'>座標：24.01885044, 120.67982111<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018850444444443,120.67982111111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 6, "lat": 24.01886372222222, "lng": 120.67984255555557, "title": "20260818_pt105_20260818163843.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt105_20260818163843.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:38:43<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0006.jpg\" alt=\"20260818_pt105_20260818163843.jpg\" />\n              <div class='popup-coord'>座標：24.01886372, 120.67984256<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01886372222222,120.67984255555557'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 7, "lat": 24.018845, "lng": 120.67987933333333, "title": "20260818_pt106_20260818163905.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt106_20260818163905.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:39:05<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0007.jpg\" alt=\"20260818_pt106_20260818163905.jpg\" />\n              <div class='popup-coord'>座標：24.01884500, 120.67987933<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018845,120.67987933333333'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 8, "lat": 24.01882922222222, "lng": 120.67988375, "title": "20260818_pt107_20260818163940.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt107_20260818163940.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:39:40<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0008.jpg\" alt=\"20260818_pt107_20260818163940.jpg\" />\n              <div class='popup-coord'>座標：24.01882922, 120.67988375<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01882922222222,120.67988375'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 9, "lat": 24.01879038888889, "lng": 120.67985955555557, "title": "20260818_pt108_20260818164004.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt108_20260818164004.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:40:04<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0009.jpg\" alt=\"20260818_pt108_20260818164004.jpg\" />\n              <div class='popup-coord'>座標：24.01879039, 120.67985956<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01879038888889,120.67985955555557'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 10, "lat": 24.018777305555556, "lng": 120.67986252777779, "title": "20260818_pt109_20260818164029.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt109_20260818164029.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:40:29<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0010.jpg\" alt=\"20260818_pt109_20260818164029.jpg\" />\n              <div class='popup-coord'>座標：24.01877731, 120.67986253<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018777305555556,120.67986252777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 11, "lat": 24.018724194444445, "lng": 120.68203022222222, "title": "20260818_pt10_20260818154303.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt10_20260818154303.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:43:03<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0011.jpg\" alt=\"20260818_pt10_20260818154303.jpg\" />\n              <div class='popup-coord'>座標：24.01872419, 120.68203022<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018724194444445,120.68203022222222'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 12, "lat": 24.018767916666665, "lng": 120.67990286111112, "title": "20260818_pt110_20260818164055.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt110_20260818164055.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:40:55<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0012.jpg\" alt=\"20260818_pt110_20260818164055.jpg\" />\n              <div class='popup-coord'>座標：24.01876792, 120.67990286<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018767916666665,120.67990286111112'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 13, "lat": 24.018720944444443, "lng": 120.67987758333334, "title": "20260818_pt111_20260818164121.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt111_20260818164121.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:41:21<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0013.jpg\" alt=\"20260818_pt111_20260818164121.jpg\" />\n              <div class='popup-coord'>座標：24.01872094, 120.67987758<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018720944444443,120.67987758333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 14, "lat": 24.01870877777778, "lng": 120.67990533333334, "title": "20260818_pt112_20260818164145.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt112_20260818164145.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:41:45<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0014.jpg\" alt=\"20260818_pt112_20260818164145.jpg\" />\n              <div class='popup-coord'>座標：24.01870878, 120.67990533<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01870877777778,120.67990533333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 15, "lat": 24.018803666666667, "lng": 120.67992269444444, "title": "20260818_pt113_20260818164211.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt113_20260818164211.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:42:11<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0015.jpg\" alt=\"20260818_pt113_20260818164211.jpg\" />\n              <div class='popup-coord'>座標：24.01880367, 120.67992269<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018803666666667,120.67992269444444'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 16, "lat": 24.01887486111111, "lng": 120.67996294444445, "title": "20260818_pt114_20260818164239.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt114_20260818164239.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:42:39<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0016.jpg\" alt=\"20260818_pt114_20260818164239.jpg\" />\n              <div class='popup-coord'>座標：24.01887486, 120.67996294<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01887486111111,120.67996294444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 17, "lat": 24.018770583333332, "lng": 120.68019075000001, "title": "20260818_pt115_20260818164329.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt115_20260818164329.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:43:29<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0017.jpg\" alt=\"20260818_pt115_20260818164329.jpg\" />\n              <div class='popup-coord'>座標：24.01877058, 120.68019075<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018770583333332,120.68019075000001'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 18, "lat": 24.018673305555556, "lng": 120.680138, "title": "20260818_pt116_20260818164405.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt116_20260818164405.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:44:05<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0018.jpg\" alt=\"20260818_pt116_20260818164405.jpg\" />\n              <div class='popup-coord'>座標：24.01867331, 120.68013800<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018673305555556,120.680138'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 19, "lat": 24.018616777777776, "lng": 120.68010780555556, "title": "20260818_pt117_20260818164434.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt117_20260818164434.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:44:34<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0019.jpg\" alt=\"20260818_pt117_20260818164434.jpg\" />\n              <div class='popup-coord'>座標：24.01861678, 120.68010781<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018616777777776,120.68010780555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 20, "lat": 24.018531888888887, "lng": 120.68030202777778, "title": "20260818_pt118_20260818164510.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt118_20260818164510.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:45:10<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0020.jpg\" alt=\"20260818_pt118_20260818164510.jpg\" />\n              <div class='popup-coord'>座標：24.01853189, 120.68030203<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018531888888887,120.68030202777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 21, "lat": 24.01847686111111, "lng": 120.68040375000001, "title": "20260818_pt119_20260818164548.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt119_20260818164548.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:45:48<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0021.jpg\" alt=\"20260818_pt119_20260818164548.jpg\" />\n              <div class='popup-coord'>座標：24.01847686, 120.68040375<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01847686111111,120.68040375000001'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 22, "lat": 24.018698861111112, "lng": 120.68201913888889, "title": "20260818_pt11_20260818154327.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt11_20260818154327.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:43:27<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0022.jpg\" alt=\"20260818_pt11_20260818154327.jpg\" />\n              <div class='popup-coord'>座標：24.01869886, 120.68201914<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018698861111112,120.68201913888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 23, "lat": 24.018563027777777, "lng": 120.68045791666667, "title": "20260818_pt120_20260818164615.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt120_20260818164615.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:46:15<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0023.jpg\" alt=\"20260818_pt120_20260818164615.jpg\" />\n              <div class='popup-coord'>座標：24.01856303, 120.68045792<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018563027777777,120.68045791666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 24, "lat": 24.018589166666665, "lng": 120.68040686111111, "title": "20260818_pt121_20260818164639.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt121_20260818164639.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:46:39<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0024.jpg\" alt=\"20260818_pt121_20260818164639.jpg\" />\n              <div class='popup-coord'>座標：24.01858917, 120.68040686<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018589166666665,120.68040686111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 25, "lat": 24.01866136111111, "lng": 120.68044561111111, "title": "20260818_pt122_20260818164712.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt122_20260818164712.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:47:12<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0025.jpg\" alt=\"20260818_pt122_20260818164712.jpg\" />\n              <div class='popup-coord'>座標：24.01866136, 120.68044561<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01866136111111,120.68044561111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 26, "lat": 24.018876083333332, "lng": 120.68056244444445, "title": "20260818_pt123_20260818164839.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt123_20260818164839.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:48:39<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0026.jpg\" alt=\"20260818_pt123_20260818164839.jpg\" />\n              <div class='popup-coord'>座標：24.01887608, 120.68056244<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018876083333332,120.68056244444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 27, "lat": 24.018900583333334, "lng": 120.6805088888889, "title": "20260818_pt124_20260818164904.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt124_20260818164904.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:49:04<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0027.jpg\" alt=\"20260818_pt124_20260818164904.jpg\" />\n              <div class='popup-coord'>座標：24.01890058, 120.68050889<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018900583333334,120.6805088888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 28, "lat": 24.01890061111111, "lng": 120.680509, "title": "20260818_pt125_20260818164932.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt125_20260818164932.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:49:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0028.jpg\" alt=\"20260818_pt125_20260818164932.jpg\" />\n              <div class='popup-coord'>座標：24.01890061, 120.68050900<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01890061111111,120.680509'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 29, "lat": 24.018875638888886, "lng": 120.68056247222222, "title": "20260818_pt126_20260818165002.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt126_20260818165002.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:50:02<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0029.jpg\" alt=\"20260818_pt126_20260818165002.jpg\" />\n              <div class='popup-coord'>座標：24.01887564, 120.68056247<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018875638888886,120.68056247222222'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 30, "lat": 24.01877463888889, "lng": 120.68050744444444, "title": "20260818_pt127_20260818165032.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt127_20260818165032.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:50:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0030.jpg\" alt=\"20260818_pt127_20260818165032.jpg\" />\n              <div class='popup-coord'>座標：24.01877464, 120.68050744<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01877463888889,120.68050744444444'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 31, "lat": 24.018793805555553, "lng": 120.68046613888889, "title": "20260818_pt128_20260818165054.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt128_20260818165054.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:50:54<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0031.jpg\" alt=\"20260818_pt128_20260818165054.jpg\" />\n              <div class='popup-coord'>座標：24.01879381, 120.68046614<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018793805555553,120.68046613888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 32, "lat": 24.018762166666665, "lng": 120.68043902777778, "title": "20260818_pt129_20260818165121.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt129_20260818165121.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:51:21<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0032.jpg\" alt=\"20260818_pt129_20260818165121.jpg\" />\n              <div class='popup-coord'>座標：24.01876217, 120.68043903<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018762166666665,120.68043902777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 33, "lat": 24.018758277777778, "lng": 120.68183786111112, "title": "20260818_pt12_20260818154414.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt12_20260818154414.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:44:14<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0033.jpg\" alt=\"20260818_pt12_20260818154414.jpg\" />\n              <div class='popup-coord'>座標：24.01875828, 120.68183786<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018758277777778,120.68183786111112'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 34, "lat": 24.018805083333334, "lng": 120.68172927777778, "title": "20260818_pt13_20260818154451.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt13_20260818154451.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:44:51<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0034.jpg\" alt=\"20260818_pt13_20260818154451.jpg\" />\n              <div class='popup-coord'>座標：24.01880508, 120.68172928<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018805083333334,120.68172927777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 35, "lat": 24.018796055555555, "lng": 120.6817241388889, "title": "20260818_pt14_20260818154514.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt14_20260818154514.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:45:14<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0035.jpg\" alt=\"20260818_pt14_20260818154514.jpg\" />\n              <div class='popup-coord'>座標：24.01879606, 120.68172414<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018796055555555,120.6817241388889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 36, "lat": 24.018804055555556, "lng": 120.68169941666667, "title": "20260818_pt15_20260818154548.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt15_20260818154548.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:45:48<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0036.jpg\" alt=\"20260818_pt15_20260818154548.jpg\" />\n              <div class='popup-coord'>座標：24.01880406, 120.68169942<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018804055555556,120.68169941666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 37, "lat": 24.01881361111111, "lng": 120.68170322222223, "title": "20260818_pt16_20260818154614.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt16_20260818154614.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:46:14<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0037.jpg\" alt=\"20260818_pt16_20260818154614.jpg\" />\n              <div class='popup-coord'>座標：24.01881361, 120.68170322<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01881361111111,120.68170322222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 38, "lat": 24.018859666666664, "lng": 120.68167588888889, "title": "20260818_pt17_20260818154640.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt17_20260818154640.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:46:40<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0038.jpg\" alt=\"20260818_pt17_20260818154640.jpg\" />\n              <div class='popup-coord'>座標：24.01885967, 120.68167589<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018859666666664,120.68167588888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 39, "lat": 24.018912583333332, "lng": 120.68151266666668, "title": "20260818_pt19_20260818154747.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt19_20260818154747.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:47:47<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0039.jpg\" alt=\"20260818_pt19_20260818154747.jpg\" />\n              <div class='popup-coord'>座標：24.01891258, 120.68151267<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018912583333332,120.68151266666668'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 40, "lat": 24.018816916666665, "lng": 120.68146961111111, "title": "20260818_pt20_20260818154820.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt20_20260818154820.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:48:20<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0040.jpg\" alt=\"20260818_pt20_20260818154820.jpg\" />\n              <div class='popup-coord'>座標：24.01881692, 120.68146961<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018816916666665,120.68146961111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 41, "lat": 24.01881536111111, "lng": 120.68147322222222, "title": "20260818_pt21_20260818154840.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt21_20260818154840.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:48:40<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0041.jpg\" alt=\"20260818_pt21_20260818154840.jpg\" />\n              <div class='popup-coord'>座標：24.01881536, 120.68147322<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01881536111111,120.68147322222222'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 42, "lat": 24.018708944444445, "lng": 120.68141544444445, "title": "20260818_pt22_20260818154913.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt22_20260818154913.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:49:13<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0042.jpg\" alt=\"20260818_pt22_20260818154913.jpg\" />\n              <div class='popup-coord'>座標：24.01870894, 120.68141544<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018708944444445,120.68141544444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 43, "lat": 24.018708944444445, "lng": 120.68141355555557, "title": "20260818_pt23_20260818154935.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt23_20260818154935.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:49:35<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0043.jpg\" alt=\"20260818_pt23_20260818154935.jpg\" />\n              <div class='popup-coord'>座標：24.01870894, 120.68141356<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018708944444445,120.68141355555557'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 44, "lat": 24.01868311111111, "lng": 120.68139641666667, "title": "20260818_pt24_20260818154957.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt24_20260818154957.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:49:57<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0044.jpg\" alt=\"20260818_pt24_20260818154957.jpg\" />\n              <div class='popup-coord'>座標：24.01868311, 120.68139642<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01868311111111,120.68139641666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 45, "lat": 24.018663277777776, "lng": 120.68138419444445, "title": "20260818_pt25_20260818155027.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt25_20260818155027.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:50:27<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0045.jpg\" alt=\"20260818_pt25_20260818155027.jpg\" />\n              <div class='popup-coord'>座標：24.01866328, 120.68138419<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018663277777776,120.68138419444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 46, "lat": 24.018636277777777, "lng": 120.68135375, "title": "20260818_pt26_20260818155052.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt26_20260818155052.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:50:52<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0046.jpg\" alt=\"20260818_pt26_20260818155052.jpg\" />\n              <div class='popup-coord'>座標：24.01863628, 120.68135375<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018636277777777,120.68135375'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 47, "lat": 24.018623333333334, "lng": 120.68131911111112, "title": "20260818_pt27_20260818155115.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt27_20260818155115.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:51:15<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0047.jpg\" alt=\"20260818_pt27_20260818155115.jpg\" />\n              <div class='popup-coord'>座標：24.01862333, 120.68131911<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018623333333334,120.68131911111112'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 48, "lat": 24.018607194444442, "lng": 120.68130519444445, "title": "20260818_pt28_20260818155141.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt28_20260818155141.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:51:41<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0048.jpg\" alt=\"20260818_pt28_20260818155141.jpg\" />\n              <div class='popup-coord'>座標：24.01860719, 120.68130519<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018607194444442,120.68130519444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 49, "lat": 24.018598277777777, "lng": 120.68132908333334, "title": "20260818_pt29_20260818155207.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt29_20260818155207.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:52:07<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0049.jpg\" alt=\"20260818_pt29_20260818155207.jpg\" />\n              <div class='popup-coord'>座標：24.01859828, 120.68132908<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018598277777777,120.68132908333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 50, "lat": 24.018586694444444, "lng": 120.68134908333334, "title": "20260818_pt2_20260818153438.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt2_20260818153438.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:34:38<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0050.jpg\" alt=\"20260818_pt2_20260818153438.jpg\" />\n              <div class='popup-coord'>座標：24.01858669, 120.68134908<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018586694444444,120.68134908333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 51, "lat": 24.01853936111111, "lng": 120.68127394444446, "title": "20260818_pt31_20260818155359.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt31_20260818155359.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:53:59<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0051.jpg\" alt=\"20260818_pt31_20260818155359.jpg\" />\n              <div class='popup-coord'>座標：24.01853936, 120.68127394<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01853936111111,120.68127394444446'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 52, "lat": 24.018519638888886, "lng": 120.68126286111112, "title": "20260818_pt32_20260818155423.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt32_20260818155423.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:54:23<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0052.jpg\" alt=\"20260818_pt32_20260818155423.jpg\" />\n              <div class='popup-coord'>座標：24.01851964, 120.68126286<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018519638888886,120.68126286111112'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 53, "lat": 24.018505305555554, "lng": 120.68125752777779, "title": "20260818_pt33_20260818155503.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt33_20260818155503.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:55:03<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0053.jpg\" alt=\"20260818_pt33_20260818155503.jpg\" />\n              <div class='popup-coord'>座標：24.01850531, 120.68125753<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018505305555554,120.68125752777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 54, "lat": 24.018500638888888, "lng": 120.68126072222223, "title": "20260818_pt34_20260818155525.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt34_20260818155525.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:55:25<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0054.jpg\" alt=\"20260818_pt34_20260818155525.jpg\" />\n              <div class='popup-coord'>座標：24.01850064, 120.68126072<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018500638888888,120.68126072222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 55, "lat": 24.018340666666667, "lng": 120.681189, "title": "20260818_pt35_20260818155608.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt35_20260818155608.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:56:08<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0055.jpg\" alt=\"20260818_pt35_20260818155608.jpg\" />\n              <div class='popup-coord'>座標：24.01834067, 120.68118900<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018340666666667,120.681189'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 56, "lat": 24.018309194444445, "lng": 120.68117827777779, "title": "20260818_pt36_20260818155631.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt36_20260818155631.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:56:31<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0056.jpg\" alt=\"20260818_pt36_20260818155631.jpg\" />\n              <div class='popup-coord'>座標：24.01830919, 120.68117828<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018309194444445,120.68117827777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 57, "lat": 24.018271055555555, "lng": 120.68118144444445, "title": "20260818_pt37_20260818155655.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt37_20260818155655.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:56:55<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0057.jpg\" alt=\"20260818_pt37_20260818155655.jpg\" />\n              <div class='popup-coord'>座標：24.01827106, 120.68118144<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018271055555555,120.68118144444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 58, "lat": 24.018214666666665, "lng": 120.6812691388889, "title": "20260818_pt38_20260818155726.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt38_20260818155726.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:57:26<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0058.jpg\" alt=\"20260818_pt38_20260818155726.jpg\" />\n              <div class='popup-coord'>座標：24.01821467, 120.68126914<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018214666666665,120.6812691388889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 59, "lat": 24.018174777777777, "lng": 120.68135463888889, "title": "20260818_pt39_20260818155806.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt39_20260818155806.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:58:06<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0059.jpg\" alt=\"20260818_pt39_20260818155806.jpg\" />\n              <div class='popup-coord'>座標：24.01817478, 120.68135464<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018174777777777,120.68135463888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 60, "lat": 24.018618194444443, "lng": 120.68137319444445, "title": "20260818_pt3_20260818153502.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt3_20260818153502.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:35:02<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0060.jpg\" alt=\"20260818_pt3_20260818153502.jpg\" />\n              <div class='popup-coord'>座標：24.01861819, 120.68137319<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018618194444443,120.68137319444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 61, "lat": 24.018093277777776, "lng": 120.68136891666667, "title": "20260818_pt40_20260818155842.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt40_20260818155842.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:58:42<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0061.jpg\" alt=\"20260818_pt40_20260818155842.jpg\" />\n              <div class='popup-coord'>座標：24.01809328, 120.68136892<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018093277777776,120.68136891666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 62, "lat": 24.01806075, "lng": 120.68137122222223, "title": "20260818_pt41_20260818155911.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt41_20260818155911.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:59:11<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0062.jpg\" alt=\"20260818_pt41_20260818155911.jpg\" />\n              <div class='popup-coord'>座標：24.01806075, 120.68137122<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01806075,120.68137122222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 63, "lat": 24.01801997222222, "lng": 120.68146361111111, "title": "20260818_pt42_20260818155953.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt42_20260818155953.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:59:53<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0063.jpg\" alt=\"20260818_pt42_20260818155953.jpg\" />\n              <div class='popup-coord'>座標：24.01801997, 120.68146361<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01801997222222,120.68146361111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 64, "lat": 24.018041083333333, "lng": 120.68147747222223, "title": "20260818_pt43_20260818160033.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt43_20260818160033.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:00:33<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0064.jpg\" alt=\"20260818_pt43_20260818160033.jpg\" />\n              <div class='popup-coord'>座標：24.01804108, 120.68147747<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018041083333333,120.68147747222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 65, "lat": 24.018071416666665, "lng": 120.68150075, "title": "20260818_pt44_20260818160101.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt44_20260818160101.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:01:01<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0065.jpg\" alt=\"20260818_pt44_20260818160101.jpg\" />\n              <div class='popup-coord'>座標：24.01807142, 120.68150075<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018071416666665,120.68150075'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 66, "lat": 24.017956249999997, "lng": 120.68176058333334, "title": "20260818_pt45_20260818160201.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt45_20260818160201.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:02:01<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0066.jpg\" alt=\"20260818_pt45_20260818160201.jpg\" />\n              <div class='popup-coord'>座標：24.01795625, 120.68176058<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017956249999997,120.68176058333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 67, "lat": 24.017929833333334, "lng": 120.68174677777779, "title": "20260818_pt46_20260818160227.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt46_20260818160227.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:02:27<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0067.jpg\" alt=\"20260818_pt46_20260818160227.jpg\" />\n              <div class='popup-coord'>座標：24.01792983, 120.68174678<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017929833333334,120.68174677777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 68, "lat": 24.017892694444445, "lng": 120.68182697222223, "title": "20260818_pt47_20260818160301.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt47_20260818160301.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:03:01<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0068.jpg\" alt=\"20260818_pt47_20260818160301.jpg\" />\n              <div class='popup-coord'>座標：24.01789269, 120.68182697<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017892694444445,120.68182697222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 69, "lat": 24.017843416666665, "lng": 120.68180205555556, "title": "20260818_pt49_20260818160409.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt49_20260818160409.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:04:09<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0069.jpg\" alt=\"20260818_pt49_20260818160409.jpg\" />\n              <div class='popup-coord'>座標：24.01784342, 120.68180206<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017843416666665,120.68180205555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 70, "lat": 24.018618916666664, "lng": 120.68139636111111, "title": "20260818_pt4_20260818153524.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt4_20260818153524.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:35:24<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0070.jpg\" alt=\"20260818_pt4_20260818153524.jpg\" />\n              <div class='popup-coord'>座標：24.01861892, 120.68139636<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018618916666664,120.68139636111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 71, "lat": 24.01793161111111, "lng": 120.68188086111111, "title": "20260818_pt54_20260818160603.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt54_20260818160603.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:06:03<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0071.jpg\" alt=\"20260818_pt54_20260818160603.jpg\" />\n              <div class='popup-coord'>座標：24.01793161, 120.68188086<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01793161111111,120.68188086111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 72, "lat": 24.01793311111111, "lng": 120.6818823888889, "title": "20260818_pt55_20260818160642.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt55_20260818160642.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:06:42<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0072.jpg\" alt=\"20260818_pt55_20260818160642.jpg\" />\n              <div class='popup-coord'>座標：24.01793311, 120.68188239<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01793311111111,120.6818823888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 73, "lat": 24.018028388888887, "lng": 120.68193394444445, "title": "20260818_pt56_20260818160713.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt56_20260818160713.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:07:13<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0073.jpg\" alt=\"20260818_pt56_20260818160713.jpg\" />\n              <div class='popup-coord'>座標：24.01802839, 120.68193394<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018028388888887,120.68193394444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 74, "lat": 24.018067833333333, "lng": 120.68194341666667, "title": "20260818_pt57_20260818160735.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt57_20260818160735.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:07:35<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0074.jpg\" alt=\"20260818_pt57_20260818160735.jpg\" />\n              <div class='popup-coord'>座標：24.01806783, 120.68194342<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018067833333333,120.68194341666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 75, "lat": 24.01806811111111, "lng": 120.68188030555557, "title": "20260818_pt58_20260818160806.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt58_20260818160806.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:08:06<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0075.jpg\" alt=\"20260818_pt58_20260818160806.jpg\" />\n              <div class='popup-coord'>座標：24.01806811, 120.68188031<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01806811111111,120.68188030555557'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 76, "lat": 24.018062666666665, "lng": 120.68186922222223, "title": "20260818_pt59_20260818160834.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt59_20260818160834.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:08:34<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0076.jpg\" alt=\"20260818_pt59_20260818160834.jpg\" />\n              <div class='popup-coord'>座標：24.01806267, 120.68186922<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018062666666665,120.68186922222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 77, "lat": 24.01865422222222, "lng": 120.68143016666667, "title": "20260818_pt5_20260818153553.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt5_20260818153553.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:35:53<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0077.jpg\" alt=\"20260818_pt5_20260818153553.jpg\" />\n              <div class='popup-coord'>座標：24.01865422, 120.68143017<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01865422222222,120.68143016666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 78, "lat": 24.01807008333333, "lng": 120.68182591666667, "title": "20260818_pt60_20260818160857.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt60_20260818160857.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:08:57<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0078.jpg\" alt=\"20260818_pt60_20260818160857.jpg\" />\n              <div class='popup-coord'>座標：24.01807008, 120.68182592<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01807008333333,120.68182591666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 79, "lat": 24.018064555555554, "lng": 120.68182033333333, "title": "20260818_pt61_20260818160917.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt61_20260818160917.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:09:17<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0079.jpg\" alt=\"20260818_pt61_20260818160917.jpg\" />\n              <div class='popup-coord'>座標：24.01806456, 120.68182033<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018064555555554,120.68182033333333'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 80, "lat": 24.01811508333333, "lng": 120.68170438888889, "title": "20260818_pt62_20260818160951.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt62_20260818160951.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:09:51<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0080.jpg\" alt=\"20260818_pt62_20260818160951.jpg\" />\n              <div class='popup-coord'>座標：24.01811508, 120.68170439<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01811508333333,120.68170438888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 81, "lat": 24.018163694444443, "lng": 120.6815933888889, "title": "20260818_pt63_20260818161032.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt63_20260818161032.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:10:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0081.jpg\" alt=\"20260818_pt63_20260818161032.jpg\" />\n              <div class='popup-coord'>座標：24.01816369, 120.68159339<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018163694444443,120.6815933888889'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 82, "lat": 24.018197583333333, "lng": 120.68154605555556, "title": "20260818_pt64_20260818161132.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt64_20260818161132.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:11:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0082.jpg\" alt=\"20260818_pt64_20260818161132.jpg\" />\n              <div class='popup-coord'>座標：24.01819758, 120.68154606<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018197583333333,120.68154605555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 83, "lat": 24.018230527777778, "lng": 120.68149841666667, "title": "20260818_pt65_20260818161156.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt65_20260818161156.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:11:56<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0083.jpg\" alt=\"20260818_pt65_20260818161156.jpg\" />\n              <div class='popup-coord'>座標：24.01823053, 120.68149842<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018230527777778,120.68149841666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 84, "lat": 24.018161638888888, "lng": 120.681593, "title": "20260818_pt66_20260818161241.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt66_20260818161241.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:12:41<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0084.jpg\" alt=\"20260818_pt66_20260818161241.jpg\" />\n              <div class='popup-coord'>座標：24.01816164, 120.68159300<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018161638888888,120.681593'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 85, "lat": 24.018145666666666, "lng": 120.68158355555556, "title": "20260818_pt67_20260818161309.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt67_20260818161309.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:13:09<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0085.jpg\" alt=\"20260818_pt67_20260818161309.jpg\" />\n              <div class='popup-coord'>座標：24.01814567, 120.68158356<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018145666666666,120.68158355555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 86, "lat": 24.01805013888889, "lng": 120.68179630555557, "title": "20260818_pt68_20260818161354.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt68_20260818161354.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:13:54<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0086.jpg\" alt=\"20260818_pt68_20260818161354.jpg\" />\n              <div class='popup-coord'>座標：24.01805014, 120.68179631<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01805013888889,120.68179630555557'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 87, "lat": 24.018070944444442, "lng": 120.68180655555555, "title": "20260818_pt69_20260818161421.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt69_20260818161421.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:14:21<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0087.jpg\" alt=\"20260818_pt69_20260818161421.jpg\" />\n              <div class='popup-coord'>座標：24.01807094, 120.68180656<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018070944444442,120.68180655555555'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 88, "lat": 24.018700027777776, "lng": 120.681455, "title": "20260818_pt6_20260818153650.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt6_20260818153650.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:36:50<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0088.jpg\" alt=\"20260818_pt6_20260818153650.jpg\" />\n              <div class='popup-coord'>座標：24.01870003, 120.68145500<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018700027777776,120.681455'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 89, "lat": 24.01792972222222, "lng": 120.68188402777778, "title": "20260818_pt70_20260818161505.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt70_20260818161505.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:15:05<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0089.jpg\" alt=\"20260818_pt70_20260818161505.jpg\" />\n              <div class='popup-coord'>座標：24.01792972, 120.68188403<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01792972222222,120.68188402777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 90, "lat": 24.017901277777778, "lng": 120.68186902777778, "title": "20260818_pt71_20260818161531.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt71_20260818161531.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:15:31<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0090.jpg\" alt=\"20260818_pt71_20260818161531.jpg\" />\n              <div class='popup-coord'>座標：24.01790128, 120.68186903<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017901277777778,120.68186902777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 91, "lat": 24.017923333333332, "lng": 120.68181425, "title": "20260818_pt72_20260818161558.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt72_20260818161558.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:15:58<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0091.jpg\" alt=\"20260818_pt72_20260818161558.jpg\" />\n              <div class='popup-coord'>座標：24.01792333, 120.68181425<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017923333333332,120.68181425'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 92, "lat": 24.01795236111111, "lng": 120.68182986111111, "title": "20260818_pt73_20260818161624.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt73_20260818161624.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:16:24<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0092.jpg\" alt=\"20260818_pt73_20260818161624.jpg\" />\n              <div class='popup-coord'>座標：24.01795236, 120.68182986<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01795236111111,120.68182986111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 93, "lat": 24.017961555555555, "lng": 120.68174730555556, "title": "20260818_pt74_20260818161700.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt74_20260818161700.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:17:00<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0093.jpg\" alt=\"20260818_pt74_20260818161700.jpg\" />\n              <div class='popup-coord'>座標：24.01796156, 120.68174731<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.017961555555555,120.68174730555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 94, "lat": 24.01798225, "lng": 120.68175855555556, "title": "20260818_pt75_20260818161722.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt75_20260818161722.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:17:22<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0094.jpg\" alt=\"20260818_pt75_20260818161722.jpg\" />\n              <div class='popup-coord'>座標：24.01798225, 120.68175856<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01798225,120.68175855555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 95, "lat": 24.01807722222222, "lng": 120.68154552777779, "title": "20260818_pt76_20260818161812.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt76_20260818161812.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:18:12<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0095.jpg\" alt=\"20260818_pt76_20260818161812.jpg\" />\n              <div class='popup-coord'>座標：24.01807722, 120.68154553<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01807722222222,120.68154552777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 96, "lat": 24.018056972222222, "lng": 120.68153505555556, "title": "20260818_pt77_20260818161836.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt77_20260818161836.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:18:36<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0096.jpg\" alt=\"20260818_pt77_20260818161836.jpg\" />\n              <div class='popup-coord'>座標：24.01805697, 120.68153506<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018056972222222,120.68153505555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 97, "lat": 24.018150444444444, "lng": 120.68149341666667, "title": "20260818_pt79_20260818161947.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt79_20260818161947.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:19:47<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0097.jpg\" alt=\"20260818_pt79_20260818161947.jpg\" />\n              <div class='popup-coord'>座標：24.01815044, 120.68149342<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018150444444444,120.68149341666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 98, "lat": 24.018739333333333, "lng": 120.68147519444445, "title": "20260818_pt7_20260818153718.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt7_20260818153718.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:37:18<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0098.jpg\" alt=\"20260818_pt7_20260818153718.jpg\" />\n              <div class='popup-coord'>座標：24.01873933, 120.68147519<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018739333333333,120.68147519444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 99, "lat": 24.01817938888889, "lng": 120.68148344444445, "title": "20260818_pt80_20260818162015.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt80_20260818162015.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:20:15<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0099.jpg\" alt=\"20260818_pt80_20260818162015.jpg\" />\n              <div class='popup-coord'>座標：24.01817939, 120.68148344<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01817938888889,120.68148344444445'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 100, "lat": 24.018612722222223, "lng": 120.68119675, "title": "20260818_pt81_20260818162255.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt81_20260818162255.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:22:55<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0100.jpg\" alt=\"20260818_pt81_20260818162255.jpg\" />\n              <div class='popup-coord'>座標：24.01861272, 120.68119675<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018612722222223,120.68119675'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 101, "lat": 24.01865122222222, "lng": 120.68120408333334, "title": "20260818_pt82_20260818162318.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt82_20260818162318.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:23:18<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0101.jpg\" alt=\"20260818_pt82_20260818162318.jpg\" />\n              <div class='popup-coord'>座標：24.01865122, 120.68120408<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01865122222222,120.68120408333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 102, "lat": 24.01890411111111, "lng": 120.68064427777779, "title": "20260818_pt83_20260818162456.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt83_20260818162456.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:24:56<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0102.jpg\" alt=\"20260818_pt83_20260818162456.jpg\" />\n              <div class='popup-coord'>座標：24.01890411, 120.68064428<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01890411111111,120.68064427777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 103, "lat": 24.018871666666666, "lng": 120.68062569444444, "title": "20260818_pt84_20260818162526.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt84_20260818162526.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:25:26<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0103.jpg\" alt=\"20260818_pt84_20260818162526.jpg\" />\n              <div class='popup-coord'>座標：24.01887167, 120.68062569<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018871666666666,120.68062569444444'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 104, "lat": 24.01879863888889, "lng": 120.68058702777778, "title": "20260818_pt85_20260818162555.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt85_20260818162555.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:25:55<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0104.jpg\" alt=\"20260818_pt85_20260818162555.jpg\" />\n              <div class='popup-coord'>座標：24.01879864, 120.68058703<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01879863888889,120.68058702777778'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 105, "lat": 24.018763916666664, "lng": 120.68047433333334, "title": "20260818_pt86_20260818162632.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt86_20260818162632.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:26:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0105.jpg\" alt=\"20260818_pt86_20260818162632.jpg\" />\n              <div class='popup-coord'>座標：24.01876392, 120.68047433<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018763916666664,120.68047433333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 106, "lat": 24.01877875, "lng": 120.68048225000001, "title": "20260818_pt87_20260818162652.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt87_20260818162652.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:26:52<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0106.jpg\" alt=\"20260818_pt87_20260818162652.jpg\" />\n              <div class='popup-coord'>座標：24.01877875, 120.68048225<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01877875,120.68048225000001'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 107, "lat": 24.018785194444444, "lng": 120.68046927777779, "title": "20260818_pt88_20260818162712.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt88_20260818162712.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:27:12<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0107.jpg\" alt=\"20260818_pt88_20260818162712.jpg\" />\n              <div class='popup-coord'>座標：24.01878519, 120.68046928<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018785194444444,120.68046927777779'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 108, "lat": 24.018786944444443, "lng": 120.68047005555556, "title": "20260818_pt89_20260818162732.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt89_20260818162732.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:27:32<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0108.jpg\" alt=\"20260818_pt89_20260818162732.jpg\" />\n              <div class='popup-coord'>座標：24.01878694, 120.68047006<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018786944444443,120.68047005555556'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 109, "lat": 24.018736333333333, "lng": 120.68148516666668, "title": "20260818_pt8_20260818153744.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt8_20260818153744.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:37:44<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0109.jpg\" alt=\"20260818_pt8_20260818153744.jpg\" />\n              <div class='popup-coord'>座標：24.01873633, 120.68148517<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018736333333333,120.68148516666668'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 110, "lat": 24.018795472222223, "lng": 120.68045541666667, "title": "20260818_pt91_20260818162808.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt91_20260818162808.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:28:08<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0110.jpg\" alt=\"20260818_pt91_20260818162808.jpg\" />\n              <div class='popup-coord'>座標：24.01879547, 120.68045542<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.018795472222223,120.68045541666667'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 111, "lat": 24.019049499999998, "lng": 120.68005847222223, "title": "20260818_pt96_20260818163142.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt96_20260818163142.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:31:42<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0111.jpg\" alt=\"20260818_pt96_20260818163142.jpg\" />\n              <div class='popup-coord'>座標：24.01904950, 120.68005847<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019049499999998,120.68005847222223'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 112, "lat": 24.019410777777775, "lng": 120.67958211111112, "title": "20260818_pt97_20260818163314.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt97_20260818163314.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:33:14<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0112.jpg\" alt=\"20260818_pt97_20260818163314.jpg\" />\n              <div class='popup-coord'>座標：24.01941078, 120.67958211<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019410777777775,120.67958211111112'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 113, "lat": 24.019402333333332, "lng": 120.67959933333334, "title": "20260818_pt98_20260818163335.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt98_20260818163335.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:33:35<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0113.jpg\" alt=\"20260818_pt98_20260818163335.jpg\" />\n              <div class='popup-coord'>座標：24.01940233, 120.67959933<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019402333333332,120.67959933333334'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 114, "lat": 24.019359388888887, "lng": 120.67965047222222, "title": "20260818_pt99_20260818163400.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt99_20260818163400.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 16:34:00<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0114.jpg\" alt=\"20260818_pt99_20260818163400.jpg\" />\n              <div class='popup-coord'>座標：24.01935939, 120.67965047<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.019359388888887,120.67965047222222'>用 Google Maps 開啟<\/a>\n            <\/div>"}, {"index": 115, "lat": 24.01876227777778, "lng": 120.68149736111111, "title": "20260818_pt9_20260818153808.jpg", "popup": "<div class='popup-card'>\n              <div class='popup-title'>20260818_pt9_20260818153808.jpg<\/div>\n              <div class='popup-meta'>拍攝日期：2026-08-18 15:38:08<\/div>\n              <div class='popup-meta'>相機型號：未辨識型號（已略過其餘照片）<\/div>\n              <img class=\"popup-photo\" src=\"photos/p0115.jpg\" alt=\"20260818_pt9_20260818153808.jpg\" />\n              <div class='popup-coord'>座標：24.01876228, 120.68149736<\/div>\n              <a class='map-link' target='_blank' href='https://maps.google.com/maps?q=24.01876227777778,120.68149736111111'>用 Google Maps 開啟<\/a>\n            <\/div>"}];
+const GOOGLE_ENABLED = true;
+const DEFAULT_PROVIDER = "google_satellite";
+const MOBILE_FALLBACK_PROVIDER = "nlsc";
+const HTML_OUTPUT_MODE = "cloud";
+const PROVIDER_LABELS = {
+  osm: 'OpenStreetMap 街道圖',
+  google_road: 'Google 街道圖',
+  esri: 'Esri World Imagery 衛星圖',
+  google_satellite: 'Google 衛星圖',
+  nlsc: 'NLSC 正射影像'
+};
+
+const leafletDiv = document.getElementById('leaflet-map');
+const googleDiv = document.getElementById('google-map');
+const basemapSelect = document.getElementById('basemap-select');
+const labelsToggle = document.getElementById('labels-toggle');
+const activeMapName = document.getElementById('active-map-name');
+const mapMessage = document.getElementById('map-message');
+
+function showMessage(text, ms=5000) {
+  mapMessage.textContent = text;
+  mapMessage.style.display = 'block';
+  window.clearTimeout(showMessage._timer);
+  if (ms > 0) showMessage._timer = window.setTimeout(() => mapMessage.style.display = 'none', ms);
+}
+
+const leafletMap = L.map('leaflet-map', {maxZoom:22, zoomControl:true}).setView([24.018535415700484, 120.68104961908213], 18);
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxNativeZoom:19, maxZoom:22, attribution:'&copy; OpenStreetMap contributors'
+});
+const esriLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxNativeZoom:19, maxZoom:22, attribution:'Tiles &copy; Esri'
+});
+const esriLabelsLayer = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+  maxNativeZoom:19, maxZoom:22, attribution:'Labels &copy; Esri'
+});
+const nlscLayer = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+  maxNativeZoom:19, maxZoom:22, attribution:'&copy; 內政部國土測繪中心 NLSC'
+});
+const leafletBaseLayers = {osm: osmLayer, esri: esriLayer, nlsc: nlscLayer};
+let activeLeafletLayer = null;
+const leafletMarkers = [];
+const leafletBounds = [];
+POINTS.forEach((p) => {
+  const marker = L.marker([p.lat, p.lng]).addTo(leafletMap).bindPopup(p.popup);
+  leafletMarkers.push(marker);
+  leafletBounds.push([p.lat, p.lng]);
+});
+if (leafletBounds.length > 1) leafletMap.fitBounds(leafletBounds, {padding:[40,40], maxZoom:19});
+
+let activeProvider = 'esri';
+let googleApiReady = false;
+let googleMap = null;
+let googleMarkers = [];
+let googleInfoWindows = [];
+let pendingGoogleProvider = null;
+let googleLoadTimer = null;
+
+function currentLeafletView() {
+  const c = leafletMap.getCenter();
+  return {lat:c.lat, lng:c.lng, zoom:leafletMap.getZoom()};
+}
+function currentGoogleView() {
+  if (!googleMap) return {lat:24.018535415700484, lng:120.68104961908213, zoom:18};
+  const c = googleMap.getCenter();
+  return {lat:c.lat(), lng:c.lng(), zoom:googleMap.getZoom() || 18};
+}
+function updateActiveLabel() {
+  activeMapName.textContent = PROVIDER_LABELS[activeProvider] || activeProvider;
+}
+function syncLabelsOverlay() {
+  const shouldShow = labelsToggle.checked && activeProvider === 'esri';
+  if (shouldShow && !leafletMap.hasLayer(esriLabelsLayer)) esriLabelsLayer.addTo(leafletMap);
+  if (!shouldShow && leafletMap.hasLayer(esriLabelsLayer)) leafletMap.removeLayer(esriLabelsLayer);
+  labelsToggle.disabled = (activeProvider !== 'esri');
+}
+function removeActiveLeafletLayer() {
+  if (activeLeafletLayer && leafletMap.hasLayer(activeLeafletLayer)) leafletMap.removeLayer(activeLeafletLayer);
+}
+function switchToLeaflet(provider) {
+  let view = currentLeafletView();
+  if (activeProvider === 'google_road' || activeProvider === 'google_satellite') view = currentGoogleView();
+  googleDiv.style.display = 'none';
+  leafletDiv.style.display = 'block';
+  removeActiveLeafletLayer();
+  activeLeafletLayer = leafletBaseLayers[provider] || esriLayer;
+  activeLeafletLayer.addTo(leafletMap);
+  activeProvider = provider;
+  leafletMap.setView([view.lat, view.lng], Math.min(22, view.zoom));
+  window.setTimeout(() => leafletMap.invalidateSize(), 0);
+  syncLabelsOverlay();
+  updateActiveLabel();
+}
+
+function ensureGoogleMap(provider) {
+  if (!googleApiReady || !window.google || !google.maps) return false;
+  const fromLeaflet = currentLeafletView();
+  if (!googleMap) {
+    googleMap = new google.maps.Map(googleDiv, {
+      center: {lat:fromLeaflet.lat, lng:fromLeaflet.lng},
+      zoom: fromLeaflet.zoom,
+      mapTypeId: provider === 'google_satellite' ? 'satellite' : 'roadmap',
+      mapTypeControl:false,
+      streetViewControl:true,
+      fullscreenControl:true
+    });
+    const bounds = new google.maps.LatLngBounds();
+    POINTS.forEach((p) => {
+      const marker = new google.maps.Marker({position:{lat:p.lat,lng:p.lng}, map:googleMap, title:p.title});
+      const info = new google.maps.InfoWindow({content:p.popup});
+      marker.addListener('click', () => info.open({anchor:marker, map:googleMap}));
+      googleMarkers.push(marker);
+      googleInfoWindows.push(info);
+      bounds.extend(marker.getPosition());
+    });
+  }
+  return true;
+}
+function fallbackFromGoogle(reason) {
+  pendingGoogleProvider = null;
+  if (googleLoadTimer) { window.clearTimeout(googleLoadTimer); googleLoadTimer = null; }
+  const fallback = MOBILE_FALLBACK_PROVIDER || 'esri';
+  basemapSelect.value = fallback;
+  switchToLeaflet(fallback);
+  showMessage(reason + ' 已自動切換到 ' + (PROVIDER_LABELS[fallback] || fallback) + '。', 9000);
+}
+
+function switchToGoogle(provider) {
+  if (!GOOGLE_ENABLED) {
+    fallbackFromGoogle('此 HTML 未寫入 Google Maps Platform API Key，Google 底圖無法載入。');
+    return;
+  }
+  if (!googleApiReady) {
+    pendingGoogleProvider = provider;
+    showMessage('Google Maps API 載入中，完成後會自動切換；若行動裝置 file:// 驗證失敗，10 秒後會自動回退。', 0);
+    if (googleLoadTimer) window.clearTimeout(googleLoadTimer);
+    googleLoadTimer = window.setTimeout(() => {
+      if (!googleApiReady && pendingGoogleProvider) {
+        fallbackFromGoogle('Google Maps API 載入逾時或被行動瀏覽器／API Key 限制阻擋。');
+      }
+    }, 10000);
+    return;
+  }
+  const view = currentLeafletView();
+  if (!ensureGoogleMap(provider)) return;
+  leafletDiv.style.display = 'none';
+  googleDiv.style.display = 'block';
+  googleMap.setMapTypeId(provider === 'google_satellite' ? 'satellite' : 'roadmap');
+  googleMap.setCenter({lat:view.lat, lng:view.lng});
+  googleMap.setZoom(Math.min(22, view.zoom));
+  activeProvider = provider;
+  labelsToggle.disabled = true;
+  if (leafletMap.hasLayer(esriLabelsLayer)) leafletMap.removeLayer(esriLabelsLayer);
+  mapMessage.style.display = 'none';
+  updateActiveLabel();
+}
+function switchBasemap(provider) {
+  if (provider === 'google_road' || provider === 'google_satellite') switchToGoogle(provider);
+  else switchToLeaflet(provider);
+}
+
+window.initGoogleMapsApi = function() {
+  googleApiReady = true;
+  if (googleLoadTimer) { window.clearTimeout(googleLoadTimer); googleLoadTimer = null; }
+  if (pendingGoogleProvider) {
+    const p = pendingGoogleProvider;
+    pendingGoogleProvider = null;
+    switchToGoogle(p);
+  }
+};
+window.gm_authFailure = function() {
+  googleApiReady = false;
+  fallbackFromGoogle('Google Maps API 驗證失敗；請檢查 API Key、Maps JavaScript API 與金鑰限制設定。');
+};
+
+basemapSelect.addEventListener('change', () => switchBasemap(basemapSelect.value));
+labelsToggle.addEventListener('change', syncLabelsOverlay);
+document.querySelectorAll('.photo-row').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const idx = Number(btn.dataset.index) - 1;
+    const lat = Number(btn.dataset.lat), lng = Number(btn.dataset.lng);
+    if (activeProvider === 'google_road' || activeProvider === 'google_satellite') {
+      if (!googleMap || !googleMarkers[idx]) return;
+      googleMap.setCenter({lat:lat,lng:lng});
+      googleMap.setZoom(20);
+      google.maps.event.trigger(googleMarkers[idx], 'click');
+    } else {
+      leafletMap.setView([lat,lng], 20);
+      if (leafletMarkers[idx]) leafletMarkers[idx].openPopup();
+    }
+  });
+});
+
+// 初始底圖；若預設 Google 但沒有 Key，自動退回 Esri。
+let initialProvider = DEFAULT_PROVIDER;
+if ((initialProvider === 'google_road' || initialProvider === 'google_satellite') && !GOOGLE_ENABLED) initialProvider = MOBILE_FALLBACK_PROVIDER || 'esri';
+basemapSelect.value = initialProvider;
+switchBasemap(initialProvider);
+</script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDRI1Pwr_g8VwywvfQVvDUepCR3fWseN0w&loading=async&callback=initGoogleMapsApi&v=weekly&language=zh-TW&region=TW"></script>
+</body>
+</html>
